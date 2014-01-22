@@ -7,6 +7,7 @@ import pygame.locals
 
 window_width = 640
 window_height = 480
+pi = math.acos(-1.0)
 
 pygame.init()
 screen = pygame.display.set_mode((window_width, window_height), 0, 32)
@@ -104,14 +105,31 @@ class EnemyBullet:
     def move(self, passed):
         self.x += self.vx * passed
         self.y += self.vy * passed
-        if self.x < 0 or self.x > window_width:
-            self.die = True
-        elif self.y < 0 or self.y > window_height:
+        if self.x < 0 or self.x > window_width or self.y < 0 or self.y > window_height:
             self.die = True
     def bound(self):
         return (self.x - 5, self.y - 5, self.x + 10, self.y + 10)
     def paint(self, screen):
         pygame.draw.rect(screen, [255, 255, 255], [int(self.x - 5), int(self.y - 5), 10, 10], 0)
+        
+class EnemyBullet1(EnemyBullet):
+    def __init__(self):
+        EnemyBullet.__init__(self)
+        self.hit = 0
+        self.hit_max = 1
+    def move(self, passed):
+        self.x += self.vx * passed
+        self.y += self.vy * passed
+        if self.x < 0 or self.x > window_width:
+            self.hit += 1
+            self.vx = -self.vx
+            if self.hit > self.hit_max:
+                self.die = True
+        if self.y < 0 or self.y > window_height:
+            self.hit += 1
+            self.vy = -self.vy
+            if self.hit > self.hit_max:
+                self.die = True
 
 enemy_bullet = []
         
@@ -123,7 +141,21 @@ class Enemy:
         self.vy = 0
         self.die = False
         self.life = 30
+        self.time = 0
+        self.freq = 100
+    def shoot(self, passed):
+        global player
+        global enemy_bullet
+        if random.randint(0, self.freq) == 0:
+            angle = math.atan2(player.y - self.y, player.x - self.x)
+            bullet = EnemyBullet()
+            bullet.x = self.x
+            bullet.y = self.y
+            bullet.vx = 0.1 * math.cos(angle)
+            bullet.vy = 0.1 * math.sin(angle)
+            enemy_bullet.append(bullet)
     def move(self, passed):
+        self.time += passed
         self.x += self.vx * passed
         self.y += self.vy * passed
         if self.x < 20:
@@ -134,21 +166,85 @@ class Enemy:
             self.vy = math.fabs(self.vy)
         elif self.y > window_height - 20:
             self.vy = -math.fabs(self.vy)
-        global player
-        global enemy_bullet
-        if random.randint(0, 300) == 0:
-            angle = math.atan2(player.y - self.y, player.x - self.x)
-            bullet = EnemyBullet()
-            bullet.x = self.x
-            bullet.y = self.y
-            bullet.vx = 0.1 * math.cos(angle)
-            bullet.vy = 0.1 * math.sin(angle)
-            enemy_bullet.append(bullet)
+        self.shoot(passed)
     def bound(self):
         return (self.x - 20, self.y - 20, self.x + 20, self.y + 20)
     def paint(self, screen):
         pygame.draw.rect(screen, [255, 255, 255], [int(self.x - 20), int(self.y - 20), 40, 40], 2)
         
+class Enemy1(Enemy):
+    def __init__(self):
+        Enemy.__init__(self)
+        self.dir = 4
+    def shoot(self, passed):
+        global enemy_bullet
+        if random.randint(0, self.freq) == 0:
+            for i in range(self.dir):
+                bullet = EnemyBullet()
+                bullet.x = self.x
+                bullet.y = self.y
+                bullet.vx = 0.15 * math.cos(pi * 2 * i / self.dir)
+                bullet.vy = 0.15 * math.sin(pi * 2 * i / self.dir)
+                enemy_bullet.append(bullet)
+                
+class Enemy2(Enemy):
+    def __init__(self):
+        Enemy.__init__(self)
+        self.last_time = 0
+        self.last_angle = 0
+        self.angle_inc = 0.15
+    def shoot(self, passed):
+        global enemy_bullet
+        if self.time - self.last_time > 500:
+            bullet = EnemyBullet()
+            bullet.x = self.x
+            bullet.y = self.y
+            bullet.vx = 0.15 * math.cos(self.last_angle)
+            bullet.vy = 0.15 * math.sin(self.last_angle)
+            enemy_bullet.append(bullet)
+            bullet = EnemyBullet()
+            bullet.x = self.x
+            bullet.y = self.y
+            bullet.vx = -0.15 * math.cos(self.last_angle)
+            bullet.vy = -0.15 * math.sin(self.last_angle)
+            enemy_bullet.append(bullet)
+            self.last_angle += self.angle_inc
+            self.last_time = self.time
+    def move(self, passed):
+        self.time += passed
+        self.vx += random.uniform(-0.001, 0.001)
+        self.vy += random.uniform(-0.001, 0.001)
+        self.x += self.vx * passed
+        self.y += self.vy * passed
+        if self.x < 20:
+            self.vx = math.fabs(self.vx)
+        elif self.x > window_width - 20:
+            self.vx = -math.fabs(self.vx)
+        if self.y < 20:
+            self.vy = math.fabs(self.vy)
+        elif self.y > window_height - 20:
+            self.vy = -math.fabs(self.vy)
+        self.shoot(passed)
+            
+class Enemy3(Enemy2):
+    def shoot(self, passed):
+        global enemy_bullet
+        if self.time - self.last_time > 500:
+            bullet = EnemyBullet1()
+            bullet.x = self.x
+            bullet.y = self.y
+            bullet.vx = 0.1 * math.cos(self.last_angle)
+            bullet.vy = 0.1 * math.sin(self.last_angle)
+            enemy_bullet.append(bullet)
+            bullet = EnemyBullet1()
+            bullet.x = self.x
+            bullet.y = self.y
+            bullet.vx = -0.1 * math.cos(self.last_angle)
+            bullet.vy = -0.1 * math.sin(self.last_angle)
+            enemy_bullet.append(bullet)
+            self.last_angle += self.angle_inc
+            self.last_time = self.time
+            
 enemy_list = []
         
 current_wave = 0
@@ -187,14 +283,123 @@ def next_wave():
             enemy.vx = -0.05
             enemy.vy = -0.05
             enemy_list.append(enemy)
+        elif current_wave == 2:
+            enemy = Enemy1()
+            enemy.x = 0
+            enemy.y = 0
+            enemy.vx = 0.05
+            enemy.vy = 0.05
+            enemy_list.append(enemy)
+            enemy = Enemy1()
+            enemy.x = window_width
+            enemy.y = 0
+            enemy.vx = -0.05
+            enemy.vy = 0.05
+            enemy_list.append(enemy)
+            enemy = Enemy1()
+            enemy.x = 0
+            enemy.y = window_height
+            enemy.vx = 0.05
+            enemy.vy = -0.05
+            enemy_list.append(enemy)
+            enemy = Enemy1()
+            enemy.x = window_width
+            enemy.y = window_height
+            enemy.vx = -0.05
+            enemy.vy = -0.05
+            enemy_list.append(enemy)
+        elif current_wave == 3:
+            enemy = Enemy1()
+            enemy.x = 0
+            enemy.y = 0
+            enemy.vx = 0.05
+            enemy.vy = 0.05
+            enemy.dir = 8
+            enemy_list.append(enemy)
+            enemy = Enemy1()
+            enemy.x = window_width
+            enemy.y = 0
+            enemy.vx = -0.05
+            enemy.vy = 0.05
+            enemy.dir = 8
+            enemy_list.append(enemy)
+            enemy = Enemy1()
+            enemy.x = 0
+            enemy.y = window_height
+            enemy.vx = 0.05
+            enemy.vy = -0.05
+            enemy.dir = 8
+            enemy_list.append(enemy)
+            enemy = Enemy1()
+            enemy.x = window_width
+            enemy.y = window_height
+            enemy.vx = -0.05
+            enemy.vy = -0.05
+            enemy.dir = 8
+            enemy_list.append(enemy)
+        elif current_wave == 4:
+            enemy = Enemy2()
+            enemy.x = 0
+            enemy.y = 0
+            enemy.vx = 0.05
+            enemy.vy = 0.05
+            enemy_list.append(enemy)
+            enemy = Enemy2()
+            enemy.x = window_width
+            enemy.y = 0
+            enemy.vx = -0.05
+            enemy.vy = 0.05
+            enemy.angle_inc = -0.15
+            enemy_list.append(enemy)
+            enemy = Enemy2()
+            enemy.x = 0
+            enemy.y = window_height
+            enemy.vx = 0.05
+            enemy.vy = -0.05
+            enemy.angle_inc = -0.15
+            enemy_list.append(enemy)
+            enemy = Enemy2()
+            enemy.x = window_width
+            enemy.y = window_height
+            enemy.vx = -0.05
+            enemy.vy = -0.05
+            enemy_list.append(enemy)
+        elif current_wave == 5:
+            enemy = Enemy3()
+            enemy.x = 0
+            enemy.y = 0
+            enemy.vx = 0.05
+            enemy.vy = 0.05
+            enemy_list.append(enemy)
+            enemy = Enemy3()
+            enemy.x = window_width
+            enemy.y = 0
+            enemy.vx = -0.05
+            enemy.vy = 0.05
+            enemy.angle_inc = -0.15
+            enemy_list.append(enemy)
+            enemy = Enemy3()
+            enemy.x = 0
+            enemy.y = window_height
+            enemy.vx = 0.05
+            enemy.vy = -0.05
+            enemy.angle_inc = -0.15
+            enemy_list.append(enemy)
+            enemy = Enemy3()
+            enemy.x = window_width
+            enemy.y = window_height
+            enemy.vx = -0.05
+            enemy.vy = -0.05
+            enemy_list.append(enemy)
         else:
             current_wave -= 1
+            max_wave = current_wave
             
 def inside(point, rect):
     return point[0] > rect[0] and point[0] < rect[2] and point[1] > rect[1] and point[1] < rect[3]
             
 def intersect(rect1, rect2):
-    return inside([rect1[0], rect1[1]], rect2) or inside([rect1[2], rect1[1]], rect2) or inside([rect1[0], rect1[3]], rect2) or inside([rect1[2], rect1[3]], rect2) or inside([rect2[0], rect2[1]], rect1) or inside([rect2[2], rect2[1]], rect1) or inside([rect2[0], rect2[3]], rect1) or inside([rect2[2], rect2[3]], rect1)
+    return (inside([rect1[0], rect1[1]], rect2) and inside([rect1[2], rect1[1]], rect2) and inside([rect1[0], rect1[3]], rect2) and inside([rect1[2], rect1[3]], rect2)) or (inside([rect2[0], rect2[1]], rect1) and inside([rect2[2], rect2[1]], rect1) and inside([rect2[0], rect2[3]], rect1) and inside([rect2[2], rect2[3]], rect1))
         
 while True:
     for event in pygame.event.get():
